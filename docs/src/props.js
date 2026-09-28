@@ -38,16 +38,26 @@ export async function loadProps(base, T, patch) {
   // Water's edge on the lakeside road: pier into the lake, boathouse and boat
   const shore = T.roads.list[T.roads.byName.shore];
   const sp = shore.pts.find((q) => q.s > 290 && q.y < 2.2) || shore.pts[Math.floor(shore.pts.length * 0.8)];
-  const sv = new THREE.Vector3(sp.x, 0, sp.z), inward = sv.clone().multiplyScalar(-1).normalize();
-  // Walk from the road toward the lake center; the pier's base goes where the water is 0.4 m deep
-  let k = 4; while (k < 60 && T.height(sv.x + inward.x * k, sv.z + inward.z * k) > M.water - 0.4) k += 0.5;
-  const pierO = sv.clone().addScaledVector(inward, k - 1.5);
+  // Pier points straight out from the shore: perpendicular to the road, toward the lower (water) side
+  const sv = new THREE.Vector3(sp.x, 0, sp.z);
+  // Pier points straight out from the shore: of 32 directions from the road, the one where the lake gets deep fastest
+  let inward = new THREE.Vector3(-sp.x, 0, -sp.z).normalize(), bestD = 1e9;
+  for (let i = 0; i < 32; i++) {
+    const a = i / 32 * Math.PI * 2, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const h = T.height(sv.x + d.x * 18, sv.z + d.z * 18) + T.height(sv.x + d.x * 30, sv.z + d.z * 30);
+    if (h < bestD) { bestD = h; inward = d; }
+  }
+  // Walk out from the road; the pier's base goes where the water is 0.3 m deep
+  let k = 4; while (k < 60 && T.height(sv.x + inward.x * k, sv.z + inward.z * k) > M.water - 0.3) k += 0.5;
+  const pierO = sv.clone().addScaledVector(inward, k - 2.0);
   const pier = put('pier', pierO, pierO.clone().add(inward), { ground: false });
   pier.position.y = M.water + 0.05;
   const side = new THREE.Vector3(-inward.z, 0, inward.x);
-  const bh = put('boathouse', pierO.clone().addScaledVector(side, 7).addScaledVector(inward, 2), pierO.clone().addScaledVector(side, 7).addScaledVector(inward, 10), { ground: false });
+  // Boathouse stands over the water beside the pier, its open end facing the lake; the boat is tied at the pier's end
+  const bhP = pierO.clone().addScaledVector(inward, 9).addScaledVector(side, 4.6);
+  const bh = put('boathouse', bhP, bhP.clone().add(inward), { ground: false });
   bh.position.y = M.water + 0.1;
-  const boat = put('boat', pierO.clone().addScaledVector(inward, 12).addScaledVector(side, 1.8), pierO.clone().addScaledVector(inward, 30).addScaledVector(side, 3), { ground: false });
+  const boat = put('boat', pierO.clone().addScaledVector(inward, 16.5).addScaledVector(side, -1.6), pierO.clone().addScaledVector(inward, 17).addScaledVector(side, -30), { ground: false });
   boat.position.y = M.water - 0.18;
   movers.push((t) => { boat.position.y = M.water - 0.18 + Math.sin(t * 1.1) * 0.03; boat.rotation.z = Math.sin(t * 0.8) * 0.035; boat.rotation.x = Math.sin(t * 0.6 + 1) * 0.02; });
   // Jigokudani: sulfur hut near the end of the road, boardwalk to the largest hot pool

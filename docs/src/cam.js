@@ -30,6 +30,7 @@ export class ChaseCam {
       this.pos.copy(this.free.pos); this.look.copy(this.free.look);
       this.c.position.copy(this.pos); this.c.lookAt(this.look);
       if (this.free.roll) this.c.rotateZ(this.free.roll);
+      this.c.updateMatrixWorld();   // culling in the same frame needs the new matrices
       if (this.c.fov !== this.free.fov) { this.c.fov = this.free.fov; this.c.updateProjectionMatrix(); }
       return;
     }

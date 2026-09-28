@@ -119,7 +119,7 @@ function impostorMaterial(tex, U, shadowU, fogU) {
     uniforms: Object.assign({ uCol: { value: tex.color }, uNrm: { value: tex.normal }, uCamPos: { value: new THREE.Vector3() } }, U, shadowU, fogU),
     vertexShader: /* glsl */`
       attribute float aKind; attribute float aFade;
-      uniform vec3 uCamPos;
+      uniform vec3 uCamPos; uniform float uMirror;
       varying vec3 vPl; varying vec3 vView; varying float vKind; varying float vFade; varying vec3 vW; varying float vTint;
       varying mat3 vR;
       const float HK[4] = float[4](24.0, 20.0, 8.5, 31.0);
@@ -130,15 +130,18 @@ function impostorMaterial(tex, U, shadowU, fogU) {
         int k = int(aKind + 0.5);
         float H = HK[k] * s, S = H * 1.12;
         vec3 C = im[3].xyz + vec3(0.0, H * 0.5, 0.0);
-        vec3 vl = transpose(R) * normalize(uCamPos - C);
+        // In the mirrored reflection pass (uMirror = -1) build the card for the mirrored camera, then flip y
+        vec3 camU = vec3(uCamPos.x, uCamPos.y * uMirror, uCamPos.z);
+        vec3 vl = transpose(R) * normalize(camU - C);
         vl.y = max(vl.y, 0.02); vl = normalize(vl);
         vec3 Z = vl, Y = normalize(vec3(0.0, 1.0, 0.0) - Z * Z.y), X = cross(Y, Z);
         vec3 Pl = X * position.x + Y * position.y;
         vec3 Pw = C + R * (Pl * S);
         vPl = Pl; vView = vl; vKind = aKind; vFade = aFade; vW = Pw; vR = R;
         vTint = fract(sin(dot(im[3].xz, vec2(0.13, 0.071)) * 91.7) * 4375.5);
-        gl_Position = projectionMatrix * viewMatrix * vec4(Pw, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(Pw.x, Pw.y * uMirror, Pw.z, 1.0);
       }`,
+    side: THREE.DoubleSide,
     fragmentShader: /* glsl */`
       uniform sampler2D uCol, uNrm; uniform vec3 uSunColor; uniform vec3 uSunDirW;
       uniform vec3 uHemiSky, uHemiGround, uEnvAmb; uniform vec3 uFogColor; uniform float uFogDensity;
