@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Hai no Michi — the Ash Road</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23d0703f%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,12 +57,45 @@
         font: 600 8.5px/1 Inter, sans-serif; color: var(--ink); letter-spacing: 0; background: rgba(0,0,0,.18); }
   .br { position: absolute; right: 22px; bottom: 16px; font-size: 9.5px; letter-spacing: .3em; color: var(--dim); font-weight: 600; }
   .br kbd { margin-left: 8px; }
+  /* Phones: the canvas fills the screen; the HUD keeps only the place name, speed and the top-right buttons */
+  html.full #stage { left: 0; top: 0; width: 100vw; height: 100dvh; transform: none !important; }
+  html.full #hud { font-size: 9px; }
+  html.full .keys, html.full .br, html.full .tr2, html.full .compass, html.full .tl i, html.full .spd .st { display: none; }
+  html.full .tc { top: calc(env(safe-area-inset-top) + 12px); }
+  html.full .tl { top: calc(env(safe-area-inset-top) + 14px); left: 16px; }
+  html.full .tr { top: calc(env(safe-area-inset-top) + 8px); right: 12px; }
+  html.full #hud .tr button:nth-child(n+2) { display: none; }
+  html.full .bl { left: 16px; bottom: calc(env(safe-area-inset-bottom) + 6px); }
+  html.full .zn { font-size: 24px; } html.full .zs { font-size: 10px; } html.full .spd { margin-top: 12px; }
+  html.full .wx { font-size: 9px; letter-spacing: .22em; }
+  @media (orientation: portrait) { html.full .tc { display: none; } }
+  /* Touch controls */
+  .touch { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  .touch .pad { position: absolute; width: 0; height: 0; opacity: 0; transition: opacity .15s; }
+  .touch .pad.on { opacity: 1; }
+  .touch .ring { position: absolute; width: 124px; height: 124px; left: -62px; top: -62px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.35); background: rgba(0,0,0,.15); }
+  .touch .knob { position: absolute; left: 0; top: 0; width: 52px; height: 52px; border-radius: 50%; background: rgba(243,238,230,.85); transform: translate(-50%, -50%); }
+  .touch .btns { position: absolute; right: calc(env(safe-area-inset-right) + 14px); bottom: calc(env(safe-area-inset-bottom) + 18px);
+                 display: grid; grid-template-columns: repeat(2, 64px); gap: 10px; pointer-events: auto; }
+  .touch button { height: 44px; border-radius: 22px; border: 1px solid rgba(255,255,255,.25); background: rgba(18,18,17,.5); color: #f3eee6;
+                  font: 600 10px/1 Inter, system-ui, sans-serif; letter-spacing: .18em; -webkit-tap-highlight-color: transparent; }
+  .touch button.on { background: rgba(208,112,63,.92); }
+  .touch .hint { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 90px); transform: translateX(-50%); color: rgba(243,238,230,.8);
+                 font: 500 11px/1.3 Inter, system-ui, sans-serif; letter-spacing: .08em; text-shadow: 0 1px 6px rgba(0,0,0,.6); transition: opacity .6s; white-space: nowrap; }
+  .touch .hint.gone { opacity: 0; }
+  html:not(.full) .touch .btns { bottom: 70px; }
+  /* Loading */
+  #load { position: fixed; inset: 0; display: grid; place-items: center; background: #0b0c0c; color: rgba(243,238,230,.7); z-index: 20;
+          font: 500 11px/1 Inter, system-ui, sans-serif; letter-spacing: .3em; transition: opacity .8s; }
+  #load.done { opacity: 0; pointer-events: none; }
+  html, body { touch-action: none; -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
 </script>
 </head>
 <body>
+<div id="load">LOADING THE CALDERA…</div>
 <div id="stage">
   <canvas id="c"></canvas>
   <div id="hud"></div>

@@ -20,15 +20,27 @@ import { shadowGLSL } from './shadows.js';
 import { makeHUD } from './hud.js';
 import { Sound } from './audio.js';
 import { makeScript } from './script.js';
+import { Q as QL, MOBILE, TOUCH } from './quality.js';
+import { TouchControls } from './touch.js';
 
-const W = 1350, H = 1080;          // reference frame size (5:4)
 const Q = new URLSearchParams(location.search);
 const RENDER = Q.has('render');   // recording: fixed time per frame, rendered at 2x resolution
+// Frame size: desktop and recording use the fixed 1350x1080 (5:4) stage; phones fill the screen at a reduced
+// resolution (QL.renderScale of device pixels, capped at QL.maxPixels)
+const FULL = MOBILE && !RENDER;
+function frameSize() {
+  if (!FULL) return [1350, 1080];
+  const dpr = Math.min(devicePixelRatio || 1, 3), w = innerWidth * dpr * QL.renderScale, h = innerHeight * dpr * QL.renderScale;
+  const k = Math.min(1, Math.sqrt(QL.maxPixels / (w * h)));
+  return [Math.round(w * k), Math.round(h * k)];
+}
+let [W, H] = frameSize();
+if (FULL) document.documentElement.classList.add('full');
 const PR = RENDER ? 2 : 1;
 const DT = 1 / 240;
 
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !MOBILE, powerPreference: 'high-performance' });
 renderer.setPixelRatio(PR);   // 1x for interactive play; recording renders at 2x and downsamples
 renderer.setSize(W, H, false);
 renderer.toneMapping = THREE.NoToneMapping;   // tone mapping happens in post.js
@@ -49,7 +61,7 @@ sunLight.position.copy(sunDir).multiplyScalar(100);
 scene.add(sunLight, sunLight.target);
 const hemi = new THREE.HemisphereLight(new THREE.Color(0.62, 0.66, 0.72), new THREE.Color(0.3, 0.24, 0.16), 0.3);
 scene.add(hemi);
-const shadows = new Shadows(renderer, sunDir);
+const shadows = new Shadows(renderer, sunDir, { size: QL.shadowSize, res: Math.min(QL.shadowRes, renderer.capabilities.maxTextureSize) });
 const patch = (m) => patchShadow(m, shadows, sunDir);
 const U = { uTime: { value: 0 }, uSunColor: { value: SUN_COLOR.clone().multiplyScalar(SUN_I) } };
 
@@ -198,7 +210,7 @@ function terrainMat(step) {
   m.customProgramCacheKey = () => 'terrain';
   return patch(m);
 }
-const terrain = buildClipmap(terrainMat);
+const terrain = buildClipmap(terrainMat, QL.clipLevels);
 scene.add(terrain);
 // Distant mountain range (beyond the map)
 const far = await makeFarRange('data/', null, noiseGLSL);
@@ -294,7 +306,7 @@ function placeOnRoad() {      // snap to the nearest road, keeping the side we'r
   const p = T.roads.at(n.road, n.s);
   car.place(p.x, p.z, Math.atan2(p.tx, p.tz) + (fwd ? 0 : Math.PI));
 }
-startAt(334);
+startAt(73);   // start at the head of the longest straight on the rim, so holding W right away stays on the road
 car.onFlip = () => placeOnRoad();
 car.obstacles = (p) => {
   const out = [];
@@ -305,10 +317,10 @@ car.obstacles = (p) => {
   return out;
 };
 
-const post = new Post(renderer, W * PR, H * PR);
+const post = new Post(renderer, W * PR, H * PR, { samples: RENDER ? 4 : QL.msaa, levels: QL.bloomLevels });
 
 // Lake: reflection renders the world flipped vertically at half resolution (lake.js)
-const rtRefl = new THREE.WebGLRenderTarget(W * PR / 2, H * PR / 2, { type: THREE.HalfFloatType, depthBuffer: true });
+const rtRefl = new THREE.WebGLRenderTarget(Math.round(W * PR * QL.reflScale), Math.round(H * PR * QL.reflScale), { type: THREE.HalfFloatType, depthBuffer: true });
 const lake = makeLake(T, rtRefl, post.refr, U, skyO.uniforms, TU, Object.assign({ uSunDirW: { value: sunDir } }, shadows.uniforms),
   { uFogColor: { value: scene.fog.color }, uFogDensity: { value: scene.fog.density } }, shadowGLSL);
 const world = new THREE.Group();
@@ -360,7 +372,23 @@ function renderReflection() {
   lake.mesh.visible = true; ground.group.visible = true;
 }
 let EXPOSURE = 1.0;
+// Phones: follow rotation and browser-bar changes (rebuild the render targets at the new size)
+function resize() {
+  if (!FULL) return;
+  const [w, h] = frameSize();
+  if (w === W && h === H) return;
+  W = w; H = h;
+  renderer.setSize(W, H, false);
+  camera.aspect = W / H; camera.updateProjectionMatrix();
+  post.setSize(W, H);
+  lake.uniforms.uRefr.value = post.refr.texture;
+  rtRefl.setSize(Math.round(W * QL.reflScale), Math.round(H * QL.reflScale));
+  lake.uniforms.uReflTexel.value.set(1 / rtRefl.width, 1 / rtRefl.height);
+  splash.uniforms.uH.value = H; geoth.steamU.uH.value = H;
+}
+addEventListener('resize', resize);
 const input = new Input(canvas);
+const touchUI = TOUCH && !RENDER ? new TouchControls(document.getElementById('stage'), input) : null;
 const cam = new ChaseCam(camera, T);
 cam.snap(car);
 addEventListener('keydown', (e) => { if (e.code === 'KeyV') cam.toggle(); });
@@ -593,4 +621,5 @@ if (RENDER) { enterScene(plan(0).scene, plan(0)); cam.free = curScene.cam(0, car
 // Render the car shadow map once up front (so the first frame doesn't sample an empty map)
 update(0);
 if (!RENDER) requestAnimationFrame(frame);
+document.getElementById('load')?.classList.add('done');
 window.__ready = true;

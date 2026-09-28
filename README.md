@@ -15,10 +15,12 @@ It runs on three.js. Every truck part, tree, rock, shrine and hut was built by P
 - A scripted 30 s film that renders frame by frame to 1350×1080 mp4
 
 ## Controls
-W/S drive · A/D steer · Shift boost · drag to look · V side view · N night · L headlights · H high beam · R recover · P hide HUD
+Keyboard: W/S drive · A/D steer · Shift boost · drag to look · V side view · N night · L headlights · H high beam · R recover · P hide HUD
+
+Touch: left thumb stick drives and steers, drag on the right to look, buttons for boost / view / reset / night. Phones get a lighter quality profile automatically (`?q=high` or `?q=low` to override).
 
 ## Requirements
-- To play: a browser with WebGL2 (Chrome / Safari / Edge). About 60 fps on an Apple M-series Mac.
+- To play: a browser with WebGL2 (Chrome / Safari / Edge), desktop or phone. About 60 fps on an Apple M-series Mac.
 - To rebuild the assets: Blender 5.2, Python 3.10+, ffmpeg, cwebp. To render the film: Google Chrome.
 
 ## Usage
@@ -44,7 +46,7 @@ make video     # render 900 frames and encode build/hai-no-michi.mp4 with sound 
 ```
 bake/          Python for Blender and numpy (terrain, far ranges, truck, foliage, trees, impostors, rocks, props, scatter)
 docs/          the page (GitHub Pages)
-  src/         main, terrain, vehicle, car, forest, groundcover, lake, sky, shadows, post, props, geothermal, splash, hud, audio, script
+  src/         main, quality, touch, terrain, vehicle, car, forest, groundcover, lake, sky, shadows, post, props, geothermal, splash, hud, audio, script
   data/        baked assets
   vendor/three three.js r160 (MIT)
 tools/         render.py (frame capture), audio.py (soundtrack), encode.sh (mp4), webp.sh (texture packing), probe.py (scripted checks)

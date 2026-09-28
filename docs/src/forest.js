@@ -2,13 +2,14 @@
 // Each frame, trees in view are split into near / mid LOD by distance; the boundary is cross-faded with dithered discard.
 // Shadows draw every tree once, in mid-LOD form, into the static shadow map (shadows.js).
 import * as THREE from 'three';
+import { Q, MOBILE } from './quality.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { shadowGLSL } from './shadows.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const KINDS = ['spruce', 'hemlock', 'young', 'tall'];
 const HEIGHT = [24, 20, 8.5, 31];
-const R0 = 48, R1 = 190, R2 = 2600, BAND = 8, BAND1 = 24;   // near and mid radii, draw limit, cross-fade widths (m)
+const R0 = 48, R1 = MOBILE ? 150 : 190, R2 = Q.treeFar, BAND = 8, BAND1 = 24;   // near and mid radii, draw limit, cross-fade widths (m)
 
 async function inflate(buf) {
   const s = new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate'));
@@ -269,7 +270,7 @@ export async function loadForest(base, U, patch, shadows, env) {
   const group = new THREE.Group();
   const find = (g, n) => { let o = null; g.scene.traverse((c) => { if (c.isMesh && c.name === n) o = c; }); return o; };
   const sets = [];           // [lod][kind] = { leaves, trunk, fade }
-  const cap = [700, 4000];
+  const cap = Q.treeCaps;
   for (const [lod, g] of [[0, g0], [1, g1]]) {
     sets[lod] = KINDS.map((k) => {
       const lg = prepGeometry(find(g, `${k}_lod${lod}_leaves`).geometry, true);
@@ -301,16 +302,19 @@ export async function loadForest(base, U, patch, shadows, env) {
       const st = new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate'));
       return new Int16Array(await new Response(st).arrayBuffer());
     });
-    const FN = fr.length / 4;
+    // On phones keep only every n-th far tree (the rest read as the same forest at that distance)
+    const stride = Math.max(1, Math.round(1 / Q.farTrees));
+    const FN = Math.floor(fr.length / 4 / stride);
     const fq = new THREE.PlaneGeometry(1, 1);
     const fk = new Float32Array(FN), ff = new Float32Array(FN).fill(1);
     const far = new THREE.InstancedMesh(fq, impMat.clone(), FN);
     far.material.uniforms = impMat.uniforms;                    // share camera position and other uniforms
-    for (let i = 0; i < FN; i++) {
+    for (let j = 0; j < FN; j++) {
+      const i = j * stride;
       const w = fr[i * 4 + 3] & 0xffff, rot = (w & 255) / 256 * Math.PI * 2, sb = w >> 8;
-      const sc = (sb & 63) / 63 * 1.6; fk[i] = sb >> 6;
+      const sc = (sb & 63) / 63 * 1.6; fk[j] = sb >> 6;
       _q.setFromAxisAngle(UPV, rot); _s.setScalar(sc); _p.set(fr[i * 4] / 10, fr[i * 4 + 1] / 10, fr[i * 4 + 2] / 10);
-      _m.compose(_p, _q, _s); far.setMatrixAt(i, _m);
+      _m.compose(_p, _q, _s); far.setMatrixAt(j, _m);
     }
     fq.setAttribute('aKind', new THREE.InstancedBufferAttribute(fk, 1));
     fq.setAttribute('aFade', new THREE.InstancedBufferAttribute(ff, 1));

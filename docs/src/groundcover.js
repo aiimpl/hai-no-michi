@@ -1,6 +1,7 @@
 // Ground cover: ferns (baked frond texture bent into arcs, arranged radially), grass tufts (bundles of tapering blades), rocks and pumice (baked in Blender).
 // Reads the placement tables (ferns/grass/rocks/pumice.bin) and each frame picks only the instances near the camera and in view.
 import * as THREE from 'three';
+import { Q } from './quality.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { noiseGLSL } from './forest.js';
 
@@ -148,10 +149,10 @@ export async function loadGroundCover(base, U, patch, T, foliageColor) {
     layers.push(L);
     return L;
   }
-  layer(ferns, [fernGeometry(1), fernGeometry(2), fernGeometry(3)], fernMat, 95, 2500);
-  layer(grass, [grassGeometry(4), grassGeometry(5)], grassMat, 70, 2500);
-  const rockL = layer(rocks, rockGeo.slice(0, 3), rockMat, 260, 900, { byKind: true, tilt: 0.5, sink: 0.12, flatY: true });
-  const pumL = layer(pumice, [rockGeo[3]], rockMat, 90, 800, { tilt: 1.2, sink: 0.05 });
+  layer(ferns, [fernGeometry(1), fernGeometry(2), fernGeometry(3)], fernMat, 95 * Q.groundRange, Math.round(2500 * Q.groundScale));
+  layer(grass, [grassGeometry(4), grassGeometry(5)], grassMat, 70 * Q.groundRange, Math.round(2500 * Q.groundScale));
+  const rockL = layer(rocks, rockGeo.slice(0, 3), rockMat, 260 * Q.groundRange, 900, { byKind: true, tilt: 0.5, sink: 0.12, flatY: true });
+  const pumL = layer(pumice, [rockGeo[3]], rockMat, 90 * Q.groundRange, 800, { tilt: 1.2, sink: 0.05 });
 
   const frustum = new THREE.Frustum(), pm = new THREE.Matrix4(), sphere = new THREE.Sphere();
   function update(camera) {

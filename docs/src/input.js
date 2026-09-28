@@ -6,9 +6,10 @@ export class Input {
     addEventListener('keydown', (e) => { this.keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
-    el.addEventListener('pointerdown', (e) => { this.drag.active = true; el.setPointerCapture(e.pointerId); });
-    el.addEventListener('pointerup', () => { this.drag.active = false; });
-    el.addEventListener('pointermove', (e) => { if (this.drag.active) { this.drag.dx += e.movementX; this.drag.dy += e.movementY; } });
+    // Mouse / pen only; touch is handled by touch.js (stick on the left, look on the right)
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') return; this.drag.active = true; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') return; this.drag.active = false; });
+    el.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch' && this.drag.active) { this.drag.dx += e.movementX; this.drag.dy += e.movementY; } });
     this.steerSm = 0;
   }
   down(...c) { return c.some((k) => this.keys.has(k)); }

@@ -16,6 +16,7 @@ function target(w, h, samples = 0, depthTex = false) {
 
 export class Post {
   constructor(renderer, w, h, { samples = 4, levels = 6 } = {}) {
+    this.samples = samples;
     this.r = renderer; this.levels = levels;
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
     this.quad.frustumCulled = false;
@@ -96,7 +97,7 @@ export class Post {
     });
     this.setSize(w, h, samples);
   }
-  setSize(w, h, samples = 4) {
+  setSize(w, h, samples = this.samples) {
     this.w = w; this.h = h;
     this.scene?.dispose(); (this.chain || []).forEach((t) => t.dispose());
     this.scene = target(w, h, samples, true);
